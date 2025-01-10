@@ -1,0 +1,10 @@
+.Deixar facebook, gmail, email, unicos
+
+.Criptografar a senha, tanto para login quanto para cadastro.
+    cadastro = usuario bota a senha xxx (criptografa ela) -> envia pro servidor 
+        -> bd retorna ok se conseguir finalizar cadastro.
+    login = usuario bota a senha xxx (criptografa ela) -> envia pro servidor
+        , ele puxa bd e compara , retorna com dados dele se for ok,
+
+.Melhorar a questao da tokennizacao, ainda ta estranho garantir que so quem tem o token (app)
+    possa enviar requisiocoes etc.. para minha api. Estudar mais e ver qual melhor opcao.
