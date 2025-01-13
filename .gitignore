@@ -170,5 +170,5 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 
-# Important keys to deploy
-config.py
+# Remove env fastapi
+fastapi/
