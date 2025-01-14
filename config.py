@@ -1,4 +1,15 @@
 DEFAULTLOGIN = "password"
 FACEBOOK = "facebook"
-GMAIL = "gmail"
+GOOGLE = "google"
 BIOMETRIC = "biometric"
+
+GOOGLE_ACCESS_TOKEN_URL="https://oauth2.googleapis.com/tokeninfo?id_token="
+GOOGLE_AUTHORIZE_URL="https://accounts.google.com/o/oauth2/auth"
+GOOGLE_API_BASE_URL="https://www.googleapis.com/oauth2/v1/"
+GOOGLE_USERINFO_ENDPOINT="https://openidconnect.googleapis.com/v1/userinfo"
+
+GITHUB_CLIENT_ID=""
+GITHUB_CLIENT_SECRET=""
+GITHUB_AUTHORIZE_URL="https://github.com/login/oauth/authorize"
+GITHUB_ACCESS_TOKEN_URL="https://github.com/login/oauth/access_token" 
+GITHUB_USERINFO_ENDPOINT="https://api.github.com/user"

@@ -1,9 +1,0 @@
-.Deixar facebook, gmail, email, unicos
-
-IMPORTANTE!!!!!!
-Validar se precisa realmente criptografar no envio se subir servidor https, acho que nao precisa...
-    .Criptografar a senha, tanto para login quanto para cadastro.
-        cadastro = usuario bota a senha xxx (criptografa ela) -> envia pro servidor 
-            -> bd retorna ok se conseguir finalizar cadastro.
-        login = usuario bota a senha xxx (criptografa ela) -> envia pro servidor
-            , ele puxa bd e compara , retorna com dados dele se for ok,

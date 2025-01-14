@@ -9,8 +9,8 @@ Base = declarative_base()
 class User(BaseModel):
     email: str
     password: str
-    facebook_token: Optional[str] = None
-    gmail_token: Optional[str] = None
+    facebook_id: Optional[str] = None
+    google_sub: Optional[str] = None
     biometric_data: Optional[str] = None
     nome: str
     sobrenome: str
@@ -22,16 +22,15 @@ class UserSchema(Base):
 
     id: int = Column(Integer, primary_key=True, autoincrement=True)
     email: str = Column(String, unique=True)
-    password: str = Column(String)
-    facebook_token: Optional[str] = Column(String)
-    gmail_token: Optional[str] = Column(String)
+    password: Optional[str] = Column(String)
+    facebook_id: Optional[str] = Column(String)
+    google_sub: Optional[str] = Column(String)
     biometric_data: Optional[str] = Column(String)
     nome: str = Column(String)
-    sobrenome: str = Column(String)
-    data_nascimento: date = Column(Date)
+    data_nascimento: Optional[date] = Column(Date) #pode ter ou n essa informacao com login social.
     data_criacao: datetime = Column(DateTime)
 
-    #se eu precisasse validar algo internamnete (acho que e papel da aplicacao que chama essa api)
+    #se eu precisasse validar algo internamente (acho que e papel da aplicacao que chama essa api)
     # @field_validator('nome')
     # def validate_name(cls, value):
     #     if len(value) < 3:
@@ -39,7 +38,6 @@ class UserSchema(Base):
     #     return value    
     
 class Login(BaseModel):
-    grand_type: str #password, google, facebook, biometric
     email: Optional[str] = None
     password: Optional[str] = None
     id_token: Optional[str] = None #google and facebook auth

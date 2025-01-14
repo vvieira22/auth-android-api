@@ -7,15 +7,19 @@ from passlib.context import CryptContext
 from pydantic import BaseModel
 import sqlalchemy
 from sqlalchemy.orm import Session
-from config import DEFAULTLOGIN, FACEBOOK, GMAIL
+from config import DEFAULTLOGIN, FACEBOOK, GOOGLE
 import models
-import validators
+from utils import get_google_data
 from datetime import datetime, timedelta, UTC
+from google.oauth2 import id_token
+from google.auth.transport import requests
+from jwt.algorithms import get_default_algorithms
 
 SECRET_KEY = os.getenv("SECRET_KEY")    
-ALGORITHM = os.getenv("ALGORITHM")
-TIMEOUT_TOKEN = os.getenv("TIMEOUT_TOKEN")
+ALGORITHM = os.getenv("ALGORITHM_TOKEN")    
+TIMEOUT_TOKEN = int(os.getenv("TIMEOUT_TOKEN"))
 ALGORITHM_PASSWORD = os.getenv("ALGORITHM_PASSWORD")
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 
 bcrypt_context = CryptContext(schemes=[ALGORITHM_PASSWORD])
 
@@ -23,32 +27,77 @@ class UserUseCase:
     def __init__(self, db_session: Session):
         self.db_session = db_session
 
-    def user_register(self, user: models.User):
-        db_user = models.UserSchema(
-            email=user.email,
-            password=bcrypt_context.hash(user.password),
-            biometric_data=user.biometric_data,
-            facebook_token=user.facebook_token,
-            gmail_token=user.gmail_token,
-            nome=user.nome,
-            sobrenome=user.sobrenome,
-            data_nascimento=user.data_nascimento,
-            data_criacao=user.data_criacao
-        )
+    def user_register(self, user: models.User, type: str):
         try:
+            if type == DEFAULTLOGIN:
+                db_user = models.UserSchema(
+                email=user.email,
+                password=bcrypt_context.hash(user.password),
+                biometric_data=user.biometric_data,
+                facebook_id=user.facebook_id,
+                google_sub=user.google_sub,
+                nome=user.nome,
+                sobrenome=user.sobrenome,
+                data_nascimento=user.data_nascimento,
+                data_criacao=user.data_criacao
+            )
+            elif type == GOOGLE:
+                usr_data = get_google_data(user.google_sub)
+                if usr_data:
+                    db_user = models.UserSchema(
+                        email=usr_data.get("email"),
+                        password=bcrypt_context.hash(user.password) if user.password  else "", #so cryptografar se tiver senha
+                        biometric_data=user.biometric_data,
+                        facebook_id=user.facebook_id,
+                        google_sub=usr_data.get("sub"),
+                        nome=usr_data.get("name"),
+                        data_nascimento=user.data_nascimento,
+                        data_criacao=user.data_criacao
+                    )
+            # elif type == FACEBOOK:
+            #     //TODO
+            
             self.db_session.add(db_user)
             self.db_session.commit()
             self.db_session.refresh(db_user)
             return db_user
         except sqlalchemy.exc.IntegrityError:
             raise HTTPException(status_code=400, detail="User already exists")
-        
-    def user_login(self, user: models.Login, expires_in: int = 45):    
-        login_type = user.grand_type
+    
+    #PRECISA SER permissao de https://www.googleapis.com/auth/userinfo.email para pegar email + nome
+    def login_google(self, id_token_str: str, expires_in: int = TIMEOUT_TOKEN):
         payload = {}
-        exp = datetime.now(UTC) + timedelta(minutes=expires_in)
-        
+        exp = (datetime.now(UTC) + timedelta(minutes=expires_in)).timestamp()
         try:
+            idinfo = id_token.verify_oauth2_token(id_token_str, requests.Request(), GOOGLE_CLIENT_ID)
+            
+            if idinfo['iss'] not in ['accounts.google.com', 'https://accounts.google.com']:
+                raise HTTPException(status_code=400, detail="Token inválido")
+            
+            user_sub = idinfo['sub']
+            email = idinfo.get("email")
+            name = idinfo.get("name")
+            birthday = idinfo.get("birthdate")
+            
+            db_user = self.db_session.query(models.UserSchema).filter_by(google_sub=user_sub).first()
+            
+            if (db_user):
+                payload = {
+                    "sub": user_sub,
+                    "exp": exp
+                }
+                acess_token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+                return acess_token
+                        
+            return {"sub": user_sub, "email": email, "name": name} #Retorna um dicionário com os dados do usuário #TODO REMOVER
+        except ValueError as e:
+            # Token inválido
+            raise HTTPException(status_code=400, detail=f"Token do Google inválido: {e}")    
+        
+    def user_login(self, user: models.Login, login_type: str , expires_in: int = TIMEOUT_TOKEN): 
+        try:
+            payload = {}
+            exp = datetime.now(UTC) + timedelta(minutes=expires_in)
             if login_type == DEFAULTLOGIN:
                 if user.email and user.password:
                     db_user = self.db_session.query(models.UserSchema).filter_by(email=user.email).first()
@@ -62,32 +111,24 @@ class UserUseCase:
                     raise HTTPException(status_code=404, detail="Invalid username or password.")       
                 raise HTTPException(status_code=404, detail="Invalid or empty body elements at request.")
             
-            elif login_type == FACEBOOK:
+            elif login_type == GOOGLE:
                 if user.id_token:
-                    db_user = self.db_session.query(models.UserSchema).filter_by(facebook_token=user.id_token).first()
-                    if db_user and db_user.facebook_token == user.id_token:
-                        payload = {
-                            "sub": user.id_token,
-                            "exp": exp
-                        }
-                        acess_token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
-                        return acess_token
-                    raise HTTPException(status_code=404, detail="Invalid facebook user or not registered yet.")
+                    usr_data = get_google_data(user.id_token)
+                    if usr_data:
+                        sub = usr_data.get("sub") #from api google auth    
+                        db_user = self.db_session.query(models.UserSchema).filter_by(google_sub=sub).first()
+
+                        if db_user and db_user.google_sub == sub:
+                            payload = {
+                                "sub": sub,
+                                "exp": exp
+                            }
+
+                            acess_token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+                            return acess_token
+                    
+                    raise HTTPException(status_code=404, detail="Invalid google user or not registered yet.")
                 raise HTTPException(status_code=404, detail="Invalid or empty body elements at request.")
-            
-            elif login_type == GMAIL:
-                if user.id_token:
-                    db_user = self.db_session.query(models.UserSchema).filter_by(gmail_token=user.id_token).first()
-                    if db_user and db_user.gmail_token == user.id_token:
-                        payload = {
-                            "sub": user.id_token,
-                            "exp": exp
-                        }
-                        acess_token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
-                        return acess_token
-                    raise HTTPException(status_code=404, detail="Invalid gmail user or not registered yet.")
-                raise HTTPException(status_code=404, detail="Invalid or empty body elements at request.")
-                
             elif login_type == "biometric" :
                 if user.biometric_data :
                     db_user = self.db_session.query(models.UserSchema).filter_by(biometric_data=user.biometric_data).first()
@@ -102,5 +143,36 @@ class UserUseCase:
                 raise HTTPException(status_code=404, detail="Invalid or empty body elements at request.")
             else:
                 raise HTTPException(status_code=404, detail="Invalid login type.")
+        except Exception as e:
+            raise HTTPException(status_code=404, detail=str(e))     
+        
+    def verify_token(self, acess_token):
+        try:
+            data = jwt.decode(acess_token, SECRET_KEY, algorithms=[ALGORITHM], options={"verify_exp": False}) 
+        except Exception as e:
+            raise HTTPException(status_code=404, detail=str(e))
+        
+        try:
+            #password
+            db_user_password = self.db_session.query(models.UserSchema).filter_by(email=data['sub']).first()
+            if(db_user_password):
+                pass
+            
+            #facebook
+            db_user_face = self.db_session.query(models.UserSchema).filter_by(facebook_id=data['sub']).first() 
+            if(db_user_face):
+                pass
+            
+            #google
+            db_user_google = self.db_session.query(models.UserSchema).filter_by(google_sub=data['sub']).first()     
+            if(db_user_google):
+                return {"message": "User found for this credentials."}
+            
+            #biometric 
+            db_user_biometric = self.db_session.query(models.UserSchema).filter_by(biometric_data=data['sub']).first()
+            if(db_user_biometric):
+                pass
+            
+            raise HTTPException(status_code=404, detail="User not found for this credentials.")
         except Exception as e:
             raise HTTPException(status_code=404, detail=str(e))
