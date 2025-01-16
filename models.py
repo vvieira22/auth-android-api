@@ -1,7 +1,6 @@
-from datetime import datetime, date
 from typing import Optional
 from pydantic import BaseModel, field_validator
-from sqlalchemy import Column, String, Date, DateTime, Integer
+from sqlalchemy import Column, String, Integer
 from sqlalchemy.ext.declarative import declarative_base
 
 Base = declarative_base()
@@ -13,9 +12,8 @@ class User(BaseModel):
     google_sub: Optional[str] = None
     biometric_data: Optional[str] = None
     nome: str
-    sobrenome: str
-    data_nascimento: date
-    data_criacao: datetime
+    data_nascimento: Optional[str] = None
+    data_criacao: Optional[str] = None
     
 class UserSchema(Base):
     __tablename__ = "usuarios"
@@ -27,8 +25,8 @@ class UserSchema(Base):
     google_sub: Optional[str] = Column(String)
     biometric_data: Optional[str] = Column(String)
     nome: str = Column(String)
-    data_nascimento: Optional[date] = Column(Date) #pode ter ou n essa informacao com login social.
-    data_criacao: datetime = Column(DateTime)
+    data_nascimento: Optional[str] = Column(String) #pode ter ou n essa informacao com login social.
+    data_criacao: Optional[str] = Column(String)
 
     #se eu precisasse validar algo internamente (acho que e papel da aplicacao que chama essa api)
     # @field_validator('nome')

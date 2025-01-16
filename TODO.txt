@@ -1,0 +1,4 @@
+1- Validar se eu posso de alguma forma fazer login ou mesmo cadastrar sem ter token, hoje é possível fazer ambos
+so depois de logado que recebe um acess_token para poder acessar outros metodos que serão implementados, validar isso
+se nao simplesmente posso pegar o endpoint, mandar uma caralhada de requisicao de registro e cagar tudo e o login spam ate mesmo ddos
+ou algo do tipo.

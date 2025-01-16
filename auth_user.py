@@ -27,7 +27,7 @@ class UserUseCase:
     def __init__(self, db_session: Session):
         self.db_session = db_session
 
-    def user_register(self, user: models.User, type: str):
+    def register(self, user: models.User, type: str):
         try:
             if type == DEFAULTLOGIN:
                 db_user = models.UserSchema(
@@ -37,7 +37,6 @@ class UserUseCase:
                 facebook_id=user.facebook_id,
                 google_sub=user.google_sub,
                 nome=user.nome,
-                sobrenome=user.sobrenome,
                 data_nascimento=user.data_nascimento,
                 data_criacao=user.data_criacao
             )
@@ -62,39 +61,9 @@ class UserUseCase:
             self.db_session.refresh(db_user)
             return db_user
         except sqlalchemy.exc.IntegrityError:
-            raise HTTPException(status_code=400, detail="User already exists")
-    
-    #PRECISA SER permissao de https://www.googleapis.com/auth/userinfo.email para pegar email + nome
-    def login_google(self, id_token_str: str, expires_in: int = TIMEOUT_TOKEN):
-        payload = {}
-        exp = (datetime.now(UTC) + timedelta(minutes=expires_in)).timestamp()
-        try:
-            idinfo = id_token.verify_oauth2_token(id_token_str, requests.Request(), GOOGLE_CLIENT_ID)
-            
-            if idinfo['iss'] not in ['accounts.google.com', 'https://accounts.google.com']:
-                raise HTTPException(status_code=400, detail="Token inválido")
-            
-            user_sub = idinfo['sub']
-            email = idinfo.get("email")
-            name = idinfo.get("name")
-            birthday = idinfo.get("birthdate")
-            
-            db_user = self.db_session.query(models.UserSchema).filter_by(google_sub=user_sub).first()
-            
-            if (db_user):
-                payload = {
-                    "sub": user_sub,
-                    "exp": exp
-                }
-                acess_token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
-                return acess_token
-                        
-            return {"sub": user_sub, "email": email, "name": name} #Retorna um dicionário com os dados do usuário #TODO REMOVER
-        except ValueError as e:
-            # Token inválido
-            raise HTTPException(status_code=400, detail=f"Token do Google inválido: {e}")    
+            raise HTTPException(status_code=208, detail="User already exists.")
         
-    def user_login(self, user: models.Login, login_type: str , expires_in: int = TIMEOUT_TOKEN): 
+    def login(self, user: models.Login, login_type: str , expires_in: int = TIMEOUT_TOKEN): 
         try:
             payload = {}
             exp = datetime.now(UTC) + timedelta(minutes=expires_in)
@@ -125,7 +94,7 @@ class UserUseCase:
                             }
 
                             acess_token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
-                            return acess_token
+                            return {acess_token}
                     
                     raise HTTPException(status_code=404, detail="Invalid google user or not registered yet.")
                 raise HTTPException(status_code=404, detail="Invalid or empty body elements at request.")
@@ -148,15 +117,13 @@ class UserUseCase:
         
     def verify_token(self, acess_token):
         try:
-            data = jwt.decode(acess_token, SECRET_KEY, algorithms=[ALGORITHM], options={"verify_exp": False}) 
+            data = jwt.decode(acess_token, SECRET_KEY, algorithms=[ALGORITHM], options={"verify_exp": False})
         except Exception as e:
             raise HTTPException(status_code=404, detail=str(e))
-        
         try:
-            #password
             db_user_password = self.db_session.query(models.UserSchema).filter_by(email=data['sub']).first()
             if(db_user_password):
-                pass
+                return
             
             #facebook
             db_user_face = self.db_session.query(models.UserSchema).filter_by(facebook_id=data['sub']).first() 

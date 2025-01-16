@@ -14,24 +14,23 @@ router = APIRouter(prefix='/user')
 test_router = APIRouter(prefix='/test', dependencies=[Depends(token_verifier)])
 
 @router.post('/register/{type}')
-def user_register(
+def register(
     type: str,
     usr: models.User,
     db_session: Session = Depends(get_db_session)):
-    
     uc = UserUseCase(db_session = db_session)
-    uc.user_register(user = usr, type = type)
+    uc.register(user = usr, type = type)
     return JSONResponse(
         content = json.dumps({"message": "User created"}),
         status_code = status.HTTP_201_CREATED
     )    
 
 @router.post('/login/{type}')
-def user_login(
+def login(
     type: str,
-    request_form_user: models.Login = Depends(),
+    request_form_user: models.Login,
     db_session: Session = Depends(get_db_session)):
-    
+
     uc = UserUseCase(db_session = db_session)
     user = models.Login(
         email = request_form_user.email,
@@ -40,10 +39,9 @@ def user_login(
         biometric_data = request_form_user.biometric_data
     )
     
-    auth_data = uc.user_login(user=user, login_type=type)
-    
+    auth_data = uc.login(user=user, login_type=type)
     return JSONResponse(
-        content = json.dumps(auth_data),
+        content = auth_data,  # Convertendo auth_data para JSON serializável
         status_code = status.HTTP_200_OK
     )
 

@@ -1,3 +1,5 @@
-(14/01/2025)- Aparentemente estamos conseguindo fazer cadastro + login com google e com password + email. Consegui unir tudo em um endpoint
+(14/01/2025): Aparentemente estamos conseguindo fazer cadastro + login com google e com password + email. Consegui unir tudo em um endpoint
     apenas mudando sua url no final, para password, google ou facebook. Falta validar algumas coisas, mas a principio tudo no backend funcionando
     so o app android mandar token certinho que da pra cadastrar no db token unico da conta e gerar um token de acesso para nossa api.
+
+(16/01/2025): Melhorias no geral, algumas correções de rotas e bugs e adicionado arquivo TODO.

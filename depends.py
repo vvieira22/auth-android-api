@@ -14,7 +14,8 @@ def get_db_session():
         session.close()
 
 def token_verifier(
-    db_session: Session = Depends(get_db_session), token = Depends(oauth_scheme)
+    db_session: Session = Depends(get_db_session),
+    token = Depends(oauth_scheme)
     ): #pegar o token do header da requisicao):`
     uc = UserUseCase(db_session=db_session)
     uc.verify_token(acess_token=token)
