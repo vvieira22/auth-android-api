@@ -19,6 +19,7 @@ def register(
     usr: models.User,
     db_session: Session = Depends(get_db_session)):
     uc = UserUseCase(db_session = db_session)
+    print("Request:" + str(usr))
     uc.register(user = usr, type = type)
     return JSONResponse(
         content = json.dumps({"message": "User created"}),
@@ -30,8 +31,8 @@ def login(
     type: str,
     request_form_user: models.Login,
     db_session: Session = Depends(get_db_session)):
-
     uc = UserUseCase(db_session = db_session)
+    
     user = models.Login(
         email = request_form_user.email,
         password = request_form_user.password,

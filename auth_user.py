@@ -30,16 +30,25 @@ class UserUseCase:
     def register(self, user: models.User, type: str):
         try:
             if type == DEFAULTLOGIN:
-                db_user = models.UserSchema(
-                email=user.email,
-                password=bcrypt_context.hash(user.password),
-                biometric_data=user.biometric_data,
-                facebook_id=user.facebook_id,
-                google_sub=user.google_sub,
-                nome=user.nome,
-                data_nascimento=user.data_nascimento,
-                data_criacao=user.data_criacao
-            )
+                if(not user.password):
+                    raise HTTPException(status_code=404, detail="Password is required.")
+                elif(not user.email):
+                    raise HTTPException(status_code=404, detail="Email is required.")
+                elif(not user.nome):
+                    raise HTTPException(status_code=404, detail="Name is required.")
+                else:
+                    db_user = models.UserSchema(
+                    email=user.email,
+                    password=bcrypt_context.hash(user.password),
+                    biometric_data=user.biometric_data,
+                    facebook_id=user.facebook_id,
+                    google_sub=user.google_sub,
+                    nome=user.nome,
+                    documento=user.documento,
+                    data_nascimento=user.data_nascimento,
+                    data_criacao=user.data_criacao,
+                    telefone=user.telefone
+                )
             elif type == GOOGLE:
                 usr_data = get_google_data(user.google_sub)
                 if usr_data:
@@ -50,8 +59,10 @@ class UserUseCase:
                         facebook_id=user.facebook_id,
                         google_sub=usr_data.get("sub"),
                         nome=usr_data.get("name"),
+                        documento=user.documento,
                         data_nascimento=user.data_nascimento,
-                        data_criacao=user.data_criacao
+                        data_criacao=user.data_criacao,
+                        telefone=user.telefone
                     )
             # elif type == FACEBOOK:
             #     //TODO
@@ -61,7 +72,9 @@ class UserUseCase:
             self.db_session.refresh(db_user)
             return db_user
         except sqlalchemy.exc.IntegrityError:
-            raise HTTPException(status_code=208, detail="User already exists.")
+            raise HTTPException(status_code=409, detail="User already exists.")
+        except Exception as e:
+            raise HTTPException(status_code=404, detail=str(e))
         
     def login(self, user: models.Login, login_type: str , expires_in: int = TIMEOUT_TOKEN): 
         try:
@@ -76,9 +89,9 @@ class UserUseCase:
                             "exp": exp
                         }
                         acess_token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
-                        return acess_token
+                        return {"access_token": acess_token}
                     raise HTTPException(status_code=404, detail="Invalid username or password.")       
-                raise HTTPException(status_code=404, detail="Invalid or empty body elements at request.")
+                raise HTTPException(status_code=404,verify_tokendetail="Invalid or empty body elements at request.")
             
             elif login_type == GOOGLE:
                 if user.id_token:
