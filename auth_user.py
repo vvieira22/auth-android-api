@@ -90,7 +90,7 @@ class UserUseCase:
                         }
                         acess_token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
                         return {"access_token": acess_token}
-                    raise HTTPException(status_code=404, detail="Invalid username or password.")       
+                    raise HTTPException(status_code=401, detail="Invalid username or password.")       
                 raise HTTPException(status_code=404,verify_tokendetail="Invalid or empty body elements at request.")
             
             elif login_type == GOOGLE:
@@ -156,3 +156,21 @@ class UserUseCase:
             raise HTTPException(status_code=404, detail="User not found for this credentials.")
         except Exception as e:
             raise HTTPException(status_code=404, detail=str(e))
+
+    def check_user_auth_social(self, user: models.Login):
+            print("REQUISICAO: " + str(user))
+    
+            db_user = self.db_session.query(models.UserSchema).filter_by(email=user.email).first()
+            if db_user:
+                #google + password login
+                if(db_user.google_sub == getattr(user, "id_token", None)):
+                    if(db_user.email == getattr(user, "email", None)):
+                        raise HTTPException(status_code=200, detail="User already registered with google and password.")
+                    raise HTTPException(status_code=200, detail="User already registered with google.")
+                
+                if(db_user.facebook_id == getattr(user, "id_token", None)):
+                    if(db_user.email == getattr(user, "email", None)):
+                        raise HTTPException(status_code=200, detail="User already registered with facebook and password.")
+                    raise HTTPException(status_code=200, detail="User already registered with facebook.")
+            else:
+                raise HTTPException(status_code=200, detail="User not registered yet.")
