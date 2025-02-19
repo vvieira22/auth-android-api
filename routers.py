@@ -33,7 +33,7 @@ def register(
     uc = UserUseCase(db_session = db_session)
     uc.register(user = usr, type = type)
     return JSONResponse(
-        content = json.dumps({"message": "User created"}),
+        content = {"message": "User created"},
         status_code = status.HTTP_201_CREATED
     )    
 

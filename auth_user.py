@@ -158,19 +158,24 @@ class UserUseCase:
             raise HTTPException(status_code=404, detail=str(e))
 
     def check_user_auth_social(self, user: models.Login):
-            print("REQUISICAO: " + str(user))
-    
-            db_user = self.db_session.query(models.UserSchema).filter_by(email=user.email).first()
+            try:
+                db_user = self.db_session.query(models.UserSchema).filter_by(email=user.email).first()
+            except Exception as e:
+                raise HTTPException(status_code=404, detail=str(e))
+            
             if db_user:
                 #google + password login
-                if(db_user.google_sub == getattr(user, "id_token", None)):
-                    if(db_user.email == getattr(user, "email", None)):
-                        raise HTTPException(status_code=200, detail="User already registered with google and password.")
-                    raise HTTPException(status_code=200, detail="User already registered with google.")
-                
+                if(db_user.google_sub == user.id_token):
+                    if(db_user.email == user.email):
+                        raise HTTPException(status_code=200, detail="User registered with google and password.")
+                    raise HTTPException(status_code=200, detail="User registered with google.")
+                #facebook + password login
                 if(db_user.facebook_id == getattr(user, "id_token", None)):
                     if(db_user.email == getattr(user, "email", None)):
-                        raise HTTPException(status_code=200, detail="User already registered with facebook and password.")
-                    raise HTTPException(status_code=200, detail="User already registered with facebook.")
-            else:
-                raise HTTPException(status_code=200, detail="User not registered yet.")
+                        raise HTTPException(status_code=200, detail="User registered with facebook and password.")
+                    raise HTTPException(status_code=200, detail="User registered with facebook.")
+                if(db_user.email == user.email):
+                    raise HTTPException(status_code=200, detail="User registered with password.")
+                raise HTTPException(status_code=404, detail="User not registered yet.")
+            else:   
+                raise HTTPException(status_code=404, detail="User not registered yet.")
