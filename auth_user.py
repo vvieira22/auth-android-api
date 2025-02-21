@@ -90,7 +90,8 @@ class UserUseCase:
                         }
                         acess_token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
                         return {"access_token": acess_token}
-                    raise HTTPException(status_code=401, detail="Invalid username or password.")       
+                    raise HTTPException(status_code=401, detail="Invalid username or password.")
+                    return      
                 raise HTTPException(status_code=404,verify_tokendetail="Invalid or empty body elements at request.")
             
             elif login_type == GOOGLE:
@@ -125,8 +126,8 @@ class UserUseCase:
                 raise HTTPException(status_code=404, detail="Invalid or empty body elements at request.")
             else:
                 raise HTTPException(status_code=404, detail="Invalid login type.")
-        except Exception as e:
-            raise HTTPException(status_code=404, detail=str(e))     
+        except HTTPException as e:
+            raise HTTPException(status_code=e.status_code, detail=e.detail)     
         
     def verify_token(self, acess_token):
         try:
