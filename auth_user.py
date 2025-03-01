@@ -75,7 +75,7 @@ class UserUseCase:
             raise HTTPException(status_code=409, detail="User already exists.")
         except Exception as e:
             raise HTTPException(status_code=404, detail=str(e))
-        
+
     def login(self, user: models.Login, login_type: str , expires_in: int = TIMEOUT_TOKEN): 
         try:
             payload = {}
@@ -95,23 +95,26 @@ class UserUseCase:
                 raise HTTPException(status_code=404,verify_tokendetail="Invalid or empty body elements at request.")
             
             elif login_type == GOOGLE:
-                if user.id_token:
-                    usr_data = get_google_data(user.id_token)
-                    if usr_data:
-                        sub = usr_data.get("sub") #from api google auth    
-                        db_user = self.db_session.query(models.UserSchema).filter_by(google_sub=sub).first()
+                if self.is_auth_social_registered(user, GOOGLE):
+                    if user.id_token:
+                        usr_data = get_google_data(user.id_token)
+                        if usr_data:
+                            sub = usr_data.get("sub") #from api google auth    
+                            db_user = self.db_session.query(models.UserSchema).filter_by(google_sub=sub).first()
 
-                        if db_user and db_user.google_sub == sub:
-                            payload = {
-                                "sub": sub,
-                                "exp": exp
-                            }
+                            if db_user and db_user.google_sub == sub:
+                                payload = {
+                                    "sub": sub,
+                                    "exp": exp
+                                }
 
-                            acess_token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
-                            return {acess_token}
-                    
-                    raise HTTPException(status_code=404, detail="Invalid google user or not registered yet.")
-                raise HTTPException(status_code=404, detail="Invalid or empty body elements at request.")
+                                acess_token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+                                return {acess_token}
+                        raise HTTPException(status_code=404, detail="User authenticated but invalid google token.")
+                    raise HTTPException(status_code=404, detail="User registered but not with google.")
+                else:
+                    raise HTTPException(status_code=503, detail="User not registered yet.")
+            
             elif login_type == "biometric" :
                 if user.biometric_data :
                     db_user = self.db_session.query(models.UserSchema).filter_by(biometric_data=user.biometric_data).first()
@@ -180,3 +183,14 @@ class UserUseCase:
                 raise HTTPException(status_code=404, detail="User not registered yet.")
             else:   
                 raise HTTPException(status_code=404, detail="User not registered yet.")
+
+    def is_auth_social_registered(self, user: models.Login, socialType: str):
+        if socialType == GOOGLE:
+            try:
+                db_user = self.db_session.query(models.UserSchema).filter_by(email=user.email).first()
+                if(db_user):
+                    if(db_user.google_sub == user.id_token):
+                        return True
+                return False
+            except Exception as e:
+                return False
